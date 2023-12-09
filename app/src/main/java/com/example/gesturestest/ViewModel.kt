@@ -56,6 +56,6 @@ class ViewModelImpl : ViewModel {
         zoom: Float,
     ): TransformState = copy(
         scale = scale * zoom,
-        offset = childRect.center + this.offset + offset,
+        offset = this.offset + offset,
     )
 }

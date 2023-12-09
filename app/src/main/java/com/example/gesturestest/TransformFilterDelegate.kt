@@ -42,10 +42,16 @@ internal class TransformFilterDelegateImpl : TransformFilterDelegate {
         parent = parentRect
         child = childRect
         return filters
-            .fold(predictState) { state, filter -> applyFilter(state, filter) }
-            .run { copy(offset = offset - child.center) }
+            .fold(predictState.includeChildOffset()) { state, filter -> applyFilter(state, filter) }
+            .excludeChildOffset()
             .also { filters.clear() }
     }
+
+    private fun TransformState.includeChildOffset() =
+        copy(offset = offset + child.center)
+
+    private fun TransformState.excludeChildOffset() =
+        copy(offset = offset - child.center)
 
     private fun applyFilter(
         state: TransformState,
@@ -83,14 +89,14 @@ internal class TransformFilterDelegateImpl : TransformFilterDelegate {
         }
         if (parent.width.absoluteValue >= predictChild.width.absoluteValue) {
             if (parent.left >= predictChild.left) {
-                tempOffset = tempOffset.copy(x = tempOffset.x + ((parent.left - predictChild.left)))
+                tempOffset = tempOffset.copy(x = tempOffset.x + (parent.left - predictChild.left))
             }
             if (parent.right <= predictChild.right) {
                 tempOffset = tempOffset.copy(x = tempOffset.x - (predictChild.right - parent.right))
             }
         } else {
             if (parent.left < predictChild.left) {
-                tempOffset = tempOffset.copy(x = tempOffset.x + ((parent.left - predictChild.left)))
+                tempOffset = tempOffset.copy(x = tempOffset.x + (parent.left - predictChild.left))
             }
             if (parent.right > predictChild.right) {
                 tempOffset = tempOffset.copy(x = tempOffset.x + (parent.right - predictChild.right))
