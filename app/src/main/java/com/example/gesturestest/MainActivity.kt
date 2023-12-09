@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -15,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.unit.dp
 import com.example.gesturestest.ui.customTransformGestures
 import com.example.gesturestest.ui.theme.GesturesTestTheme
 
@@ -40,20 +42,21 @@ private fun Screen(viewModel: ViewModel) {
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
+            .padding(20.dp)
             .customTransformGestures(viewModel::onTransformUpdate),
         contentAlignment = Alignment.Center,
     ) {
         Box(
             modifier = Modifier
                 .background(Color.Green)
-                .aspectRatio(16f / 9f)
+                .aspectRatio(9f / 16f)
                 .fillMaxSize()
-                .onGloballyPositioned(viewModel::onParenLayoutCoordinatesUpdate),
+                .onGloballyPositioned(viewModel::onParentUpdate),
             contentAlignment = Alignment.Center,
         ) {
             Box(
                 modifier = Modifier
-                    .aspectRatio(1f)
+                    .aspectRatio(16f/9f)
                     .fillMaxSize()
                     .graphicsLayer(
                         scaleX = state.scale,
@@ -61,8 +64,8 @@ private fun Screen(viewModel: ViewModel) {
                         translationX = state.offset.x.toFloat(),
                         translationY = state.offset.y.toFloat(),
                     )
-                    .background(Color.Red)
-                    .onGloballyPositioned(viewModel::onChildLayoutCoordinatesUpdate)
+                    .background(Color.White.copy(alpha = 0.9f))
+                    .onGloballyPositioned(viewModel::onChildUpdate)
             )
         }
     }

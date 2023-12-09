@@ -6,21 +6,12 @@ import androidx.compose.ui.unit.IntRect
 import kotlin.math.absoluteValue
 import kotlin.math.roundToInt
 
-internal fun IntRect.reachFullOverlapsSize(other: IntRect): Boolean =
-    width.absoluteValue >= other.width.absoluteValue ||
-        height.absoluteValue >= other.height.absoluteValue
-
-internal fun IntRect.difScale(other: IntRect): Float =
-    width.absoluteValue.toFloat() / other.width.absoluteValue
-
 internal fun IntRect.factorToOverlaps(other: IntRect): Float = when {
     aspectRatio() > other.aspectRatio() -> width.absoluteValue.toFloat() / other.width.absoluteValue
     else -> height.absoluteValue.toFloat() / other.height.absoluteValue
 }
 
 internal fun IntRect.aspectRatio(): Float = width.absoluteValue.toFloat() / height.absoluteValue
-
-internal fun IntRect.resolution(): Int = width.absoluteValue * height.absoluteValue
 
 internal fun IntRect.times(factor: Float) = IntRect(
     left = (left * factor).roundToInt(),

@@ -1,98 +1,101 @@
 package com.example.gesturestest
 
 import androidx.compose.ui.unit.IntRect
-import com.example.gesturestest.TransformFilter.FULL_SCALE
-import com.example.gesturestest.TransformFilter.OFFSET_IN_PARENT_RECT
-import com.example.gesturestest.TransformFilter.SCALE_TO_PARENT
-import com.example.gesturestest.util.toLog
+import com.example.gesturestest.TransformFilterDelegate.TransformFilter
+import com.example.gesturestest.TransformFilterDelegate.TransformFilter.FULL_SCALE
+import com.example.gesturestest.TransformFilterDelegate.TransformFilter.OFFSET_IN_PARENT_RECT
+import com.example.gesturestest.TransformFilterDelegate.TransformFilter.SCALE_TO_PARENT
 import kotlin.math.absoluteValue
 import kotlin.math.max
 import kotlin.math.min
 
-enum class TransformFilter {
-    FULL_SCALE,
-    SCALE_TO_PARENT,
-    OFFSET_IN_PARENT_RECT
+internal interface TransformFilterDelegate {
+    fun addFilter(filter: TransformFilter): TransformFilterDelegate
+    fun release(parentRect: IntRect, childRect: IntRect, predictState: TransformState): TransformState
+
+    enum class TransformFilter {
+        FULL_SCALE,
+        SCALE_TO_PARENT,
+        OFFSET_IN_PARENT_RECT
+    }
 }
 
 private const val MAX_ZOOM = 8.05f
 private const val MIN_ZOOM = 0.5f
 
-object TransformFilterDelegate {
+internal class TransformFilterDelegateImpl : TransformFilterDelegate {
 
+    private var parent: IntRect = IntRect.Zero
+    private var child: IntRect = IntRect.Zero
     private val filters = LinkedHashSet<TransformFilter>()
 
-    fun addFilter(filter: TransformFilter?): TransformFilterDelegate {
-        filter?.let(filters::add)
+    override fun addFilter(filter: TransformFilter): TransformFilterDelegate {
+        filters.add(filter)
         return this
     }
 
-    fun release(
-        paren: IntRect,
-        child: IntRect,
-        predictState: TransformState,
-    ): TransformState = filters
-        .fold(predictState) { newState, filter -> applyFilter(newState, filter, paren, child) }
-        .run { copy(offset = offset - child.center) }
-        .also { filters.clear() }
+    override fun release(
+        parentRect: IntRect,
+        childRect: IntRect,
+        predictState: TransformState
+    ): TransformState {
+        parent = parentRect
+        child = childRect
+        return filters
+            .fold(predictState) { state, filter -> applyFilter(state, filter) }
+            .run { copy(offset = offset - child.center) }
+            .also { filters.clear() }
+    }
 
     private fun applyFilter(
-        newState: TransformState,
+        state: TransformState,
         filter: TransformFilter,
-        paren: IntRect,
-        child: IntRect,
     ) = when (filter) {
-        FULL_SCALE -> newState.fullScale()
-        SCALE_TO_PARENT -> newState.scaleToParent(paren = paren, child = child)
-        OFFSET_IN_PARENT_RECT -> newState.offsetInParent(paren = paren, child = child)
+        FULL_SCALE -> state.fullScale()
+        SCALE_TO_PARENT -> state.scaleToParent()
+        OFFSET_IN_PARENT_RECT -> state.offsetInParent()
     }
 
     private fun TransformState.fullScale() = copy(scale = min(max(MIN_ZOOM, scale), MAX_ZOOM))
 
-    private fun TransformState.scaleToParent(paren: IntRect, child: IntRect): TransformState {
-        val factor = paren.factorToOverlaps(child.transform(scale, offset))
+    private fun TransformState.scaleToParent(): TransformState {
+        val factor = parent.factorToOverlaps(child.transform(scale, offset))
         return if (factor < 1f) copy(scale = scale * factor) else this
     }
 
-    private fun TransformState.offsetInParent(
-        paren: IntRect,
-        child: IntRect,
-    ): TransformState {
+    private fun TransformState.offsetInParent(): TransformState {
         val predictChild = child.transform(scale, offset)
         var tempOffset = offset
-        if (paren.height.absoluteValue >= predictChild.height.absoluteValue) {
-            if (paren.top >= predictChild.top) {
-                tempOffset = tempOffset.copy(y = tempOffset.y + (paren.top - predictChild.top))
+        if (parent.height.absoluteValue >= predictChild.height.absoluteValue) {
+            if (parent.top >= predictChild.top) {
+                tempOffset = tempOffset.copy(y = tempOffset.y + (parent.top - predictChild.top))
             }
-            if (paren.bottom <= predictChild.bottom) {
-                tempOffset = tempOffset.copy(y = tempOffset.y - (predictChild.bottom - paren.bottom))
+            if (parent.bottom <= predictChild.bottom) {
+                tempOffset = tempOffset.copy(y = tempOffset.y - (predictChild.bottom - parent.bottom))
             }
-        }
-        if (paren.width.absoluteValue >= predictChild.width.absoluteValue) {
-            if (paren.left >= predictChild.left) {
-                tempOffset = tempOffset.copy(x = tempOffset.x + ((paren.left - predictChild.left)))
+        } else {
+            if (parent.top < predictChild.top) {
+                tempOffset = tempOffset.copy(y = tempOffset.y - (predictChild.top - parent.top))
             }
-            if (paren.right <= predictChild.right) {
-                tempOffset = tempOffset.copy(x = tempOffset.x - (predictChild.right - paren.right))
-            }
-        }
-        if (paren.height.absoluteValue < predictChild.height.absoluteValue) {
-            if (paren.top < predictChild.top) {
-                tempOffset = tempOffset.copy(y = tempOffset.y - (predictChild.top - paren.top))
-            }
-            if (predictChild.bottom < paren.bottom) {
-                tempOffset = tempOffset.copy(y = tempOffset.y + (paren.bottom - predictChild.bottom))
+            if (predictChild.bottom < parent.bottom) {
+                tempOffset = tempOffset.copy(y = tempOffset.y + (parent.bottom - predictChild.bottom))
             }
         }
-        if (paren.width.absoluteValue < predictChild.width.absoluteValue) {
-            if (paren.left < predictChild.left) {
-                tempOffset = tempOffset.copy(x = tempOffset.x + ((paren.left - predictChild.left)))
+        if (parent.width.absoluteValue >= predictChild.width.absoluteValue) {
+            if (parent.left >= predictChild.left) {
+                tempOffset = tempOffset.copy(x = tempOffset.x + ((parent.left - predictChild.left)))
             }
-            if (paren.right > predictChild.right) {
-                tempOffset = tempOffset.copy(x = tempOffset.x + (paren.right - predictChild.right))
+            if (parent.right <= predictChild.right) {
+                tempOffset = tempOffset.copy(x = tempOffset.x - (predictChild.right - parent.right))
+            }
+        } else {
+            if (parent.left < predictChild.left) {
+                tempOffset = tempOffset.copy(x = tempOffset.x + ((parent.left - predictChild.left)))
+            }
+            if (parent.right > predictChild.right) {
+                tempOffset = tempOffset.copy(x = tempOffset.x + (parent.right - predictChild.right))
             }
         }
-        "paren:$paren predictChild:$predictChild".toLog()
         return copy(offset = tempOffset)
     }
 }
