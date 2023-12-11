@@ -27,7 +27,7 @@ internal interface TransformFilterDelegate {
 
 private const val MAX_ZOOM = 8.05f
 private const val MIN_ZOOM = 0.9f
-private const val MIN_STEP_TO_ZOOM_FACTOR = 1.5f
+private const val MIN_STEP_TO_ZOOM_FACTOR = 1.3f
 private const val MAX_STEP_TO_ZOOM_FACTOR = 8.0f
 
 private const val BORDERLESS_MODE_FACTOR = 1.25f
@@ -45,6 +45,8 @@ internal class TransformFilterDelegateImpl : TransformFilterDelegate {
     private val valueAnimator = ValueAnimator()
     private val factor: Float
         get() = parent.factorToOverlaps(child)
+    private val isBorderlessEnable: Boolean
+        get() = factor <= BORDERLESS_MODE_FACTOR
 
     override fun onParentUpdate(layoutCoordinates: LayoutCoordinates) {
         parent = layoutCoordinates.boundsInRoot().roundToIntRect()
@@ -67,43 +69,14 @@ internal class TransformFilterDelegateImpl : TransformFilterDelegate {
     }
 
     override fun postprocessingFilter() {
-        valueAnimator.removeAllUpdateListeners()
-        valueAnimator.cancel()
         val scale = _transformState.value.scale
-        valueAnimator.apply {
-            duration = ANIMATION_DURATION
-            when {
-                scale > MAX_STEP_TO_ZOOM_FACTOR -> {
-                    setFloatValues(scale, MAX_STEP_TO_ZOOM_FACTOR)
-                    addUpdateListener(::animate)
-                    start()
-                }
-                scale in factor..MIN_STEP_TO_ZOOM_FACTOR -> {
-                    setFloatValues(scale, factor)
-                    addUpdateListener(::animate)
-                    start()
-                }
-                scale in 1f..factor -> {
-                    setFloatValues(scale, factor)
-                    addUpdateListener(::animate)
-                    start()
-                }
-                scale < factor -> {
-                    setFloatValues(scale, 1f)
-                    addUpdateListener(::animate)
-                    start()
-                }
+        when {
+            scale > MAX_STEP_TO_ZOOM_FACTOR -> animate(scale, MAX_STEP_TO_ZOOM_FACTOR)
+            isBorderlessEnable && scale in BORDERLESS_MIN_FACTOR..MIN_STEP_TO_ZOOM_FACTOR -> {
+                animate(scale, factor)
             }
-        }
-    }
-
-    private fun animate(valueAnimator: ValueAnimator) {
-        val scale = (valueAnimator.animatedValue as? Float) ?: return
-        _transformState.update { state ->
-            state.copy(scale = scale)
-                .includeChildOffset()
-                .offsetRelativeToParent()
-                .excludeChildOffset()
+            isBorderlessEnable && scale < BORDERLESS_MIN_FACTOR -> animate(scale, 1f)
+            scale < MIN_STEP_TO_ZOOM_FACTOR -> animate(scale, 1f)
         }
     }
 
@@ -155,6 +128,26 @@ internal class TransformFilterDelegateImpl : TransformFilterDelegate {
         scale = scale * zoom,
         offset = this.offset + offset,
     )
+
+    private fun animate(begin: Float, end: Float) {
+        valueAnimator.apply {
+            removeAllUpdateListeners()
+            cancel()
+            setFloatValues(begin, end)
+            duration = ANIMATION_DURATION
+            addUpdateListener { valueAnimator ->
+                (valueAnimator.animatedValue as? Float)?.let { scale ->
+                    _transformState.update { state ->
+                        state.copy(scale = scale)
+                            .includeChildOffset()
+                            .offsetRelativeToParent()
+                            .excludeChildOffset()
+                    }
+                }
+            }
+            start()
+        }
+    }
 
     private fun IntRect.factorToOverlaps(other: IntRect): Float = when {
         aspectRatio() > other.aspectRatio() -> width.absoluteValue.toFloat() / other.width.absoluteValue
