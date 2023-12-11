@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -16,12 +17,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.unit.dp
 import com.example.gesturestest.ui.customTransformGestures
 import com.example.gesturestest.ui.theme.GesturesTestTheme
+import com.example.gesturestest.util.toLog
 
 class MainActivity : ComponentActivity() {
-
     private val viewModel: ViewModel by lazy { ViewModelImpl() }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -43,20 +45,28 @@ private fun Screen(viewModel: ViewModel) {
             .fillMaxSize()
             .background(Color.Black)
             .padding(20.dp)
-            .customTransformGestures(viewModel::onTransformUpdate),
+            .customTransformGestures(
+                onGesture = viewModel::onTransformUpdate,
+                onProgressEnd = viewModel::onTransformEnd,
+            ),
         contentAlignment = Alignment.Center,
     ) {
+        Text(
+            modifier = Modifier.align(Alignment.TopCenter),
+            text = state.scale.toString(),
+            color = Color.Green,
+        )
         Box(
             modifier = Modifier
                 .background(Color.Green)
-                .aspectRatio(9f / 16f)
+                .aspectRatio(16f / 9f)
                 .fillMaxSize()
-                .onGloballyPositioned(viewModel::onParentUpdate),
+                .onPlaced(viewModel::onParentUpdate),
             contentAlignment = Alignment.Center,
         ) {
             Box(
                 modifier = Modifier
-                    .aspectRatio(16f/9f)
+                    .aspectRatio(16f / 7.5f)
                     .fillMaxSize()
                     .graphicsLayer(
                         scaleX = state.scale,
@@ -65,7 +75,7 @@ private fun Screen(viewModel: ViewModel) {
                         translationY = state.offset.y.toFloat(),
                     )
                     .background(Color.White.copy(alpha = 0.9f))
-                    .onGloballyPositioned(viewModel::onChildUpdate)
+                    .onPlaced(viewModel::onChildUpdate),
             )
         }
     }

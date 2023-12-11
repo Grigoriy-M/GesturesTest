@@ -14,6 +14,8 @@ import kotlin.math.abs
 
 fun Modifier.customTransformGestures(
     onGesture: (offset: IntOffset, zoom: Float) -> Unit,
+    onProgressStart: (() -> Unit)? = null,
+    onProgressEnd: (() -> Unit)? = null,
 ): Modifier = pointerInput(Unit) {
     awaitEachGesture {
         var zoom = 1f
@@ -22,6 +24,7 @@ fun Modifier.customTransformGestures(
         val touchSlop = viewConfiguration.touchSlop
 
         awaitFirstDown(requireUnconsumed = false)
+        onProgressStart?.invoke()
         do {
             val event = awaitPointerEvent()
             val zoomChange = event.calculateZoom()
@@ -38,5 +41,6 @@ fun Modifier.customTransformGestures(
                 onGesture(offsetChange.round(), zoomChange)
             }
         } while (event.changes.any { it.pressed })
+        onProgressEnd?.invoke()
     }
 }

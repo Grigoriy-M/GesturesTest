@@ -6,13 +6,16 @@ import androidx.compose.ui.unit.IntRect
 import kotlin.math.absoluteValue
 import kotlin.math.roundToInt
 
+@Stable
 internal fun IntRect.factorToOverlaps(other: IntRect): Float = when {
     aspectRatio() > other.aspectRatio() -> width.absoluteValue.toFloat() / other.width.absoluteValue
     else -> height.absoluteValue.toFloat() / other.height.absoluteValue
 }
 
+@Stable
 internal fun IntRect.aspectRatio(): Float = width.absoluteValue.toFloat() / height.absoluteValue
 
+@Stable
 internal fun IntRect.times(factor: Float) = IntRect(
     left = (left * factor).roundToInt(),
     top = (top * factor).roundToInt(),
@@ -21,7 +24,7 @@ internal fun IntRect.times(factor: Float) = IntRect(
 )
 
 @Stable
-fun IntRect.transform(scale: Float, offset: IntOffset): IntRect {
+internal fun IntRect.transform(scale: Float, offset: IntOffset): IntRect {
     val radiusX = (scale * width.absoluteValue / 2).roundToInt()
     val radiusY = (scale * height.absoluteValue / 2).roundToInt()
     return copy(
